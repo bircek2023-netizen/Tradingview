@@ -3,29 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI SCALPING IHSG — 5 Perintah</title>
+<title>AI SCALPING IHSG</title>
 <style>
 :root{--bg:#060a0f;--card:#0c131b;--line:#1c2936;--txt:#eaf1f8;--muted:#8998a8;--green:#20d695;--yellow:#f2c94c;--red:#ff6475;--cyan:#35d6e7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px Arial,sans-serif}.wrap{max-width:1400px;margin:auto;padding:12px}
 .top{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.sp{flex:1}h1{font-size:19px;margin:4px 0}.sub{color:var(--muted);font-size:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:11px}
-button,input{background:#101a24;color:var(--txt);border:1px solid #2a3a49;border-radius:7px;padding:9px;font-size:14px}button{cursor:pointer}button:hover{border-color:var(--cyan)}
+button,input,select{background:#101a24;color:var(--txt);border:1px solid #2a3a49;border-radius:7px;padding:9px;font-size:14px}button{cursor:pointer}button:hover{border-color:var(--cyan)}
 button.primary{background:#103d31;border-color:#286f5a;color:#7af2c0;font-weight:bold}
 .cmds{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.cmds input{flex:1;min-width:220px}
 .badge{display:inline-block;padding:4px 9px;border-radius:12px;font-size:11px;font-weight:bold}.buy{background:#103d31;color:#6df1b8}.sell{background:#4a2029;color:#ff8997}.neu{background:#173546;color:#7ce8ff}
-.green{color:var(--green)}.red{color:var(--red)}.muted{color:var(--muted)}
+.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.cyan{color:var(--cyan)}.muted{color:var(--muted)}
 .twrap{overflow:auto;max-height:70vh;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:1000px}th,td{padding:7px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}th{color:var(--muted);font-size:11px;position:sticky;top:0;background:#0c131b}.t{font-weight:bold}
-.card h3{font-size:14px;margin:16px 0 4px}.ihsg{display:flex;align-items:center;gap:8px}.ihsg b{font-size:20px}
+tr[data-s]{cursor:pointer}tr[data-s]:hover td{background:#101c27}tr[data-s] .t{color:#fff}
+.ihsg{display:flex;align-items:center;gap:8px}.ihsg b{font-size:20px}.card h3{font-size:14px;margin:16px 0 4px}
+#dlg{display:none;position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}.dwrap{max-width:1100px;margin:auto;padding:12px}
+.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}.m{border:1px solid var(--line);border-radius:9px;padding:8px}.m span{display:block;color:var(--muted);font-size:11px}.m b{display:block;margin-top:3px;font-size:14px}
+.signal{font-size:22px;font-weight:800;padding:12px;border:1px solid var(--line);border-radius:11px;text-align:center;margin-top:8px}
+.row{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:7px 0;gap:8px}
+.tfb.on{border-color:var(--cyan);background:#10222b}
+a{color:#7ce8ff}
 </style>
 </head>
 <body><div class="wrap">
 <div class="top">
- <div><h1>🧠 AI SCALPING IHSG — 5 PERINTAH</h1><div class="sub">Setelah scan, hasil BUY / SELL / earnings langsung tampil otomatis untuk semua saham IDX.</div></div>
+ <div><h1>🧠 AI SCALPING IHSG — 5 PERINTAH</h1><div class="sub">Setelah scan, hasil BUY / SELL / earnings tampil otomatis. Klik saham untuk analisa teknikal lengkap + grafik.</div></div>
  <span class="sp"></span>
  <div class="ihsg"><span class="sub">IHSG</span><b id="ihsgP">—</b><b id="ihsgC">—</b></div>
  <button id="scanBtn">⟳ SCAN</button>
 </div>
-
 <div class="card">
  <div class="cmds">
   <button data-cmd="/bull" class="primary">🟢 /bull</button>
@@ -34,16 +40,18 @@ button.primary{background:#103d31;border-color:#286f5a;color:#7af2c0;font-weight
   <input id="cmdInput" placeholder="/price BBCA · /price 100-500 · /find bank" autocomplete="off">
   <button id="cmdBtn" class="primary">▶ JALANKAN</button>
  </div>
- <div id="cmdNote" class="sub" style="margin-top:8px">Setelah SCAN, hasil /bull, /bear, dan /earn tampil otomatis. Ketik /price, /find, atau /help untuk yang lain.</div>
+ <div id="cmdNote" class="sub" style="margin-top:8px">Hasil /bull, /bear, /earn tampil otomatis. Ketik /price, /find, atau /help untuk yang lain.</div>
  <div id="status" class="sub" style="margin-top:4px">Menunggu scanner…</div>
  <div id="out"></div>
  <div class="sub" style="margin-top:10px">Rule engine berbasis data scanner TradingView (bisa delayed). Bukan nasihat investasi dan bukan jaminan profit. SELL = sinyal keluar untuk saham yang dipegang, bukan short.</div>
 </div>
 </div>
 
+<div id="dlg"><div class="dwrap"><div class="top"><button id="dclose" class="primary">← KEMBALI</button><span class="sp"></span></div><div id="dbody"></div></div></div>
+
 <script>
 const $=s=>document.querySelector(s);
-const S={rows:[],cmd:null,lastScan:0};
+const S={rows:[],cmd:null,lastScan:0,cd:{},cur:'',cfg:{fee:0.001,slip:0.0007}};
 const WEB=/^https?:$/.test(location.protocol);
 const TVS=[...(WEB?['/api/scan?m=indonesia','/api/scan?m=global']:[]),'https://scanner.tradingview.com/indonesia/scan','https://scanner.tradingview.com/global/scan'];
 const n=(x,d=2)=>Number.isFinite(+x)?(+x).toFixed(d):'—';
@@ -52,12 +60,11 @@ const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const cols=()=>['name','description','close','change','volume','relative_volume_10d_calc','high','low','open','VWAP','RSI','MACD.macd','MACD.signal','EMA10','EMA20','EMA50','Mom','ADX','ATR','sector'];
 
 async function tv(url,body){const c=new AbortController(),t=setTimeout(()=>c.abort(),10000);try{const r=await fetch(url,{method:'POST',headers:{Accept:'application/json','Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(body),mode:'cors',credentials:'omit',signal:c.signal});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
-async function tvAny(body){let err='';for(const u of TVS){try{const j=await tv(u,body);if(j?.data?.length)return j.data}catch(e){err=e.message}}const blocked=/failed to fetch|load failed|networkerror|abort|cors/i.test(err);throw Error(blocked?'Koneksi ke TradingView diblokir/gagal ('+err+'). Jika file dibuka dari penyimpanan HP (content:// atau file://), hosting di Vercel dengan /api/scan diperlukan.':(err||'data kosong'))}
+async function tvAny(body){let err='';for(const u of TVS){try{const j=await tv(u,body);if(j?.data?.length)return j.data}catch(e){err=e.message}}const blocked=/failed to fetch|load failed|networkerror|abort|cors/i.test(err);throw Error(blocked?'Koneksi ke TradingView diblokir/gagal ('+err+'). Pastikan halaman dibuka dari alamat Vercel dan /api/scan terpasang.':(err||'data kosong'))}
 const payload=(tickers=[])=>({filter:[],options:{lang:'en'},symbols:{query:{types:[]},tickers},columns:cols(),sort:{sortBy:'volume',sortOrder:'desc',nullsFirst:false},range:[0,1500]});
-
 function mapRow(x){const d=x.d||[],o={};cols().forEach((k,i)=>o[k]=d[i]);return{sym:(x.s||o.name||'').replace(/^IDX:/,''),desc:o.description||'',p:+o.close||0,chg:+o.change||0,vol:+o.volume||0,rv:+o.relative_volume_10d_calc||0,high:+o.high||0,vw:+o.VWAP||0,rsi:+o.RSI||0,macd:+o['MACD.macd']||0,msig:+o['MACD.signal']||0,e10:+o.EMA10||0,e20:+o.EMA20||0,e50:+o.EMA50||0,mom:+o.Mom||0,adx:+o.ADX||0,atr:+o.ATR||0,sector:o.sector||''}}
 
-/* ===== Mesin sinyal: BUY / SELL / NETRAL untuk setiap saham ===== */
+/* ===== Mesin sinyal: BUY / SELL / NETRAL ===== */
 function score(){
  const up=S.rows.filter(r=>r.chg>0).length,breadth=up/Math.max(1,S.rows.length),sec={};
  S.rows.forEach(r=>{(sec[r.sector]??={n:0,u:0}).n++;if(r.chg>0)sec[r.sector].u++});
@@ -80,14 +87,12 @@ function score(){
   if(r.chg>=7){sc-=12;chase=true;why.push('rawan kejar harga')}
   if(r.rsi>80)veto.push('RSI ekstrem');
   if(r.p<50)veto.push('harga <50');
-  if(r.vw&&r.atr&&(r.p-r.vw)/r.atr>2.2){sc-=8;chase=true}
+  if(r.vw&&r.atr&&(r.p-r.vw)/r.atr>2.2){sc-=8;chase=true;why.push('jauh dari VWAP')}
   r.sc=Math.max(0,Math.min(100,Math.round(sc)));r.veto=veto;r.chase=chase;r.why=why.slice(0,5).join(' · ');
-
   const core=r.p>r.e20&&r.rsi>=50&&r.macd>=r.msig&&r.rv>=1.15&&(!r.vw||r.p>=r.vw*.997);
   const trigger=core&&r.rv>=1.4&&r.chg>0&&(!r.vw||r.p>r.vw);
   r.buy=!veto.length&&!chase&&((r.sc>=82&&trigger)||(r.sc>=70&&core));
   r.strong=r.buy&&r.sc>=82&&trigger;
-
   let b=0,bw=[];
   if(r.p<r.e10&&r.e10<r.e20){b+=15;bw.push('EMA bearish')}else if(r.p<r.e20){b+=8;bw.push('di bawah EMA20')}
   if(r.e20<r.e50){b+=8;bw.push('tren turun')}
@@ -100,7 +105,7 @@ function score(){
   if(r.adx>=20&&r.p<r.e20)b+=5;
   r.bsc=Math.min(100,b);r.bwhy=bw.slice(0,5).join(' · ');
   r.sell=!r.buy&&r.bsc>=55;
-
+  r.phase=r.sell?'EXIT / REVERSAL':r.strong?'ENTRY NOW':r.buy?'EARLY ENTRY':'WAIT';
   const risk=r.atr>0?Math.max(.7,1.2*r.atr):r.p*.012;
   r.entryLow=r.vw&&r.vw<r.p?r.vw:r.p-risk*.35;r.entryHigh=r.p;
   r.sl=Math.max(0,r.entryLow-risk);r.tp1=r.p+risk*1.5;r.tp2=r.p+risk*2.5;r.rr=(r.tp1-r.p)/Math.max(.01,r.p-r.sl);
@@ -109,15 +114,15 @@ function score(){
 }
 const sigBadge=r=>r.buy?`<span class="badge buy">🟢 BUY${r.strong?' · KUAT':''}</span>`:r.sell?`<span class="badge sell">🔴 SELL${r.bsc>=70?' · KUAT':''}</span>`:'<span class="badge neu">— NETRAL</span>';
 
-/* ===== Tampilan hasil ===== */
+/* ===== Tabel hasil ===== */
 function tbl(rows){
  if(!rows.length)return '<div class="sub" style="margin:8px 0">Tidak ada saham yang cocok.</div>';
- return `<div class="twrap"><table><thead><tr><th>#</th><th>SAHAM</th><th>SINYAL</th><th>SKOR</th><th>HARGA</th><th>%</th><th>RSI</th><th>RVOL</th><th>VWAP</th><th>ENTRY</th><th>SL</th><th>TP1</th><th>TP2</th><th>R:R</th><th>ALASAN</th></tr></thead><tbody>${rows.map((r,i)=>{const b=r.buy,sl=r.sell&&!r.buy;return `<tr><td>${i+1}</td><td class="t">${esc(r.sym)}</td><td>${sigBadge(r)}</td><td><b>${sl?r.bsc:r.sc}</b></td><td>${n(r.p)}</td><td class="${r.chg>=0?'green':'red'}">${pct(r.chg)}</td><td>${n(r.rsi,1)}</td><td>${n(r.rv,2)}</td><td>${r.vw?(r.p>r.vw?'🟢':'🔴'):'—'}</td><td>${b?n(r.entryLow)+'–'+n(r.entryHigh):'—'}</td><td>${b?n(r.sl):'—'}</td><td>${b?n(r.tp1):'—'}</td><td>${b?n(r.tp2):'—'}</td><td>${b?n(r.rr,2):'—'}</td><td>${esc(sl?r.bwhy:r.why)||'—'}</td></tr>`}).join('')}</tbody></table></div>`}
+ return `<div class="twrap"><table><thead><tr><th>#</th><th>SAHAM</th><th>SINYAL</th><th>SKOR</th><th>HARGA</th><th>%</th><th>RSI</th><th>RVOL</th><th>VWAP</th><th>ENTRY</th><th>SL</th><th>TP1</th><th>TP2</th><th>R:R</th><th>ALASAN</th></tr></thead><tbody>${rows.map((r,i)=>{const b=r.buy,sl=r.sell&&!r.buy;return `<tr data-s="${esc(r.sym)}"><td>${i+1}</td><td class="t">${esc(r.sym)}</td><td>${sigBadge(r)}</td><td><b>${sl?r.bsc:r.sc}</b></td><td>${n(r.p)}</td><td class="${r.chg>=0?'green':'red'}">${pct(r.chg)}</td><td>${n(r.rsi,1)}</td><td>${n(r.rv,2)}</td><td>${r.vw?(r.p>r.vw?'🟢':'🔴'):'—'}</td><td>${b?n(r.entryLow)+'–'+n(r.entryHigh):'—'}</td><td>${b?n(r.sl):'—'}</td><td>${b?n(r.tp1):'—'}</td><td>${b?n(r.tp2):'—'}</td><td>${b?n(r.rr,2):'—'}</td><td>${esc(sl?r.bwhy:r.why)||'—'}</td></tr>`}).join('')}</tbody></table></div>`}
 function earnTable(rows){
  const D=v=>Number.isFinite(+v)&&+v>0?new Date(+v*1000).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
  const sig=x=>{const r=S.rows.find(q=>q.sym===x);return r?sigBadge(r):'—'};
  if(!rows.length)return '<div class="sub" style="margin:8px 0">Tidak ada rilis laporan terjadwal dalam 30 hari.</div>';
- return '<div class="twrap" style="max-height:340px"><table style="min-width:900px"><thead><tr><th>SAHAM</th><th>SINYAL</th><th>HARGA</th><th>RILIS BERIKUTNYA</th><th>RILIS TERAKHIR</th><th>EPS TTM</th><th>EPS YoY</th><th>PER</th></tr></thead><tbody>'+rows.map(o=>`<tr><td class="t">${esc(o.sym)}</td><td>${sig(o.sym)}</td><td>${n(o.close)}</td><td>${D(o.earnings_release_next_date)}</td><td>${D(o.earnings_release_date)}</td><td>${n(o.earnings_per_share_basic_ttm)}</td><td>${o.earnings_per_share_diluted_yoy_growth_ttm==null?'—':pct(o.earnings_per_share_diluted_yoy_growth_ttm)}</td><td>${n(o.price_earnings_ttm,1)}</td></tr>`).join('')+'</tbody></table></div>'}
+ return '<div class="twrap" style="max-height:340px"><table style="min-width:900px"><thead><tr><th>SAHAM</th><th>SINYAL</th><th>HARGA</th><th>RILIS BERIKUTNYA</th><th>RILIS TERAKHIR</th><th>EPS TTM</th><th>EPS YoY</th><th>PER</th></tr></thead><tbody>'+rows.map(o=>`<tr data-s="${esc(o.sym)}"><td class="t">${esc(o.sym)}</td><td>${sig(o.sym)}</td><td>${n(o.close)}</td><td>${D(o.earnings_release_next_date)}</td><td>${D(o.earnings_release_date)}</td><td>${n(o.earnings_per_share_basic_ttm)}</td><td>${o.earnings_per_share_diluted_yoy_growth_ttm==null?'—':pct(o.earnings_per_share_diluted_yoy_growth_ttm)}</td><td>${n(o.price_earnings_ttm,1)}</td></tr>`).join('')+'</tbody></table></div>'}
 function render(){
  if(S.cmd&&S.cmd.mode==='earn')return;
  if(!S.cmd){
@@ -154,14 +159,14 @@ async function ensureSym(key){
 }
 
 /* ===== 5 perintah ===== */
-const HELP='<b>5 perintah:</b><br>/bull — semua saham dengan sinyal BUY<br>/bear — semua saham dengan sinyal SELL<br>/price BBCA — harga + sinyal + entry/SL/TP satu saham · /price 100-500 · /price &gt;1000 · /price &lt;200 — filter rentang harga<br>/find bank atau /find BBCA — cari kode/nama + sinyalnya<br>/earn — rilis laporan ≤30 hari + sinyal · /earn BBCA — satu saham<br>(/reset untuk kembali ke tampilan otomatis)';
+const HELP='<b>5 perintah:</b><br>/bull — semua saham BUY<br>/bear — semua saham SELL<br>/price BBCA — satu saham · /price 100-500 · /price &gt;1000 · /price &lt;200 — filter harga<br>/find bank atau /find BBCA — cari kode/nama<br>/earn — rilis laporan ≤30 hari · /earn BBCA — satu saham<br>/reset — kembali ke tampilan otomatis<br>Klik saham mana pun untuk analisa lengkap + grafik.';
 async function runCmd(raw){
  const t=(raw||'').trim();if(!t)return;
  const parts=t.split(/\s+/),cmd=parts[0].toLowerCase(),arg=parts.slice(1).join(' ').trim(),note=m=>{$('#cmdNote').innerHTML=m};
  if(cmd==='/help'){note(HELP);return}
  if(cmd==='/reset'){S.cmd=null;render();note('Kembali ke tampilan otomatis (BUY + SELL + earnings).');return}
  if(!S.rows.length){note('<span class="red">Scanner belum siap — tekan SCAN dulu.</span>');return}
- if(cmd==='/bull'){S.cmd={mode:'bull',fn:r=>r.buy,sort:(a,b)=>b.sc-a.sc};render();note('🟢 /bull — '+S.rows.filter(S.cmd.fn).length+' saham BUY (urut skor). Entry, SL, dan TP ada di tabel.');return}
+ if(cmd==='/bull'){S.cmd={mode:'bull',fn:r=>r.buy,sort:(a,b)=>b.sc-a.sc};render();note('🟢 /bull — '+S.rows.filter(S.cmd.fn).length+' saham BUY (urut skor).');return}
  if(cmd==='/bear'){S.cmd={mode:'bear',fn:r=>r.sell,sort:(a,b)=>b.bsc-a.bsc};render();note('🔴 /bear — '+S.rows.filter(S.cmd.fn).length+' saham SELL (urut skor bearish).');return}
  if(cmd==='/price'){
   if(!arg){note('Contoh: /price BBCA · /price 100-500 · /price &gt;1000');return}
@@ -170,7 +175,8 @@ async function runCmd(raw){
   if(g){const v=f(g[2]),upv=g[1]==='>';S.cmd={mode:'price',fn:r=>upv?r.p>v:r.p<v,sort:(a,b)=>b.sc-a.sc};render();note('💰 /price '+g[1]+v+' — '+S.rows.filter(S.cmd.fn).length+' saham');return}
   const key=arg.toUpperCase().replace(/[^A-Z0-9.]/g,'');
   try{const r=await ensureSym(key);S.cmd={mode:'price',fn:x=>x.sym===key,sort:(a,b)=>b.sc-a.sc};render();
-   note(`💰 <b>${esc(r.sym)}</b> ${n(r.p)} (${pct(r.chg)}) · ${r.buy?'🟢 BUY':r.sell?'🔴 SELL':'— NETRAL'}`+(r.buy?`<br>Entry ${n(r.entryLow)}–${n(r.entryHigh)} · SL ${n(r.sl)} · TP1 ${n(r.tp1)} · TP2 ${n(r.tp2)}`:''))}
+   note(`💰 <b>${esc(r.sym)}</b> ${n(r.p)} (${pct(r.chg)}) · ${r.buy?'🟢 BUY':r.sell?'🔴 SELL':'— NETRAL'}`+(r.buy?`<br>Entry ${n(r.entryLow)}–${n(r.entryHigh)} · SL ${n(r.sl)} · TP1 ${n(r.tp1)} · TP2 ${n(r.tp2)}`:''));
+   openDetail(key)}
   catch(e){note('<span class="red">❌ '+esc(key)+' tidak ditemukan.</span>')}
   return}
  if(cmd==='/find'){
@@ -208,12 +214,22 @@ async function earn(arg,note){
  catch(e){note('<span class="red">❌ '+esc(e.message)+'</span>')}
 }
 
-document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>{$('#cmdInput').value=b.dataset.cmd;runCmd(b.dataset.cmd)});
-$('#cmdBtn').onclick=()=>runCmd($('#cmdInput').value);
-$('#cmdInput').addEventListener('keydown',e=>{if(e.key==='Enter')runCmd(e.target.value)});
-$('#scanBtn').onclick=scan;
-setInterval(()=>{if(!document.hidden)scan()},30000);
-setInterval(()=>{if(!document.hidden)updateIHSG()},5000);
-scan();updateIHSG();
-</script>
-</body></html>
+/* ===== Indikator ===== */
+function ema(a,p){const o=[],k=2/(p+1);let e=null;for(const v of a){if(!Number.isFinite(v)){o.push(e);continue}e=e==null?v:v*k+e*(1-k);o.push(e)}return o}
+function sma(a,p){return a.map((_,i)=>i<p-1?null:a.slice(i-p+1,i+1).reduce((x,y)=>x+y,0)/p)}
+function rsi(a,p=14){const o=Array(a.length).fill(null);let g=0,l=0;for(let i=1;i<a.length;i++){const d=a[i]-a[i-1],u=Math.max(0,d),dn=Math.max(0,-d);if(i<=p){g+=u;l+=dn;if(i===p){g/=p;l/=p}}else{g=(g*(p-1)+u)/p;l=(l*(p-1)+dn)/p}if(i>=p)o[i]=l===0?100:100-100/(1+g/l)}return o}
+function atr(c,p=14){return sma(c.map((x,i)=>i?Math.max(x.h-x.l,Math.abs(x.h-c[i-1].c),Math.abs(x.l-c[i-1].c)):x.h-x.l),p)}
+function macd(a){const a12=ema(a,12),a26=ema(a,26),m=a.map((_,i)=>a12[i]-a26[i]),sig=ema(m,9);return{m,sig,h:m.map((x,i)=>x-sig[i])}}
+function stoch(c,p=14){return c.map((x,i)=>{if(i<p-1)return null;const w=c.slice(i-p+1,i+1),lo=Math.min(...w.map(z=>z.l)),hi=Math.max(...w.map(z=>z.h));return hi===lo?50:100*(x.c-lo)/(hi-lo)})}
+function roc(a,p=5){return a.map((x,i)=>i<p?null:(a[i-p]?100*(x-a[i-p])/a[i-p]:null))}
+function vwapS(c){let pv=0,v=0,day=null;return c.map(x=>{const d=Math.floor((x.t+7*36e5)/864e5);if(d!==day){day=d;pv=0;v=0}pv+=((x.h+x.l+x.c)/3)*(x.v||0);v+=x.v||0;return v?pv/v:null})}
+async function candles(sym,tf,rg){
+ const y=encodeURIComponent(sym+'.JK'),key=sym+tf+rg,ch=S.cache?.[key];
+ if(ch&&Date.now()-ch.t<60000)return ch.a;
+ const urls=[...(WEB?['/api/scan?y='+y+'&i='+tf+'&r='+rg]:[]),'https://query1.finance.yahoo.com/v8/finance/chart/'+y+'?interval='+tf+'&range='+rg+'&events=history'];
+ let last='gagal';
+ for(const u of urls){try{
+  const c=new AbortController(),tm=setTimeout(()=>c.abort(),12000);const r=await fetch(u,{credentials:'omit',signal:c.signal});clearTimeout(tm);
+  if(!r.ok){last='HTTP '+r.status;continue}
+  const j=await r.json(),z=j.chart?.result?.[0],q=z?.indicators?.quote?.[0];
+  if(
