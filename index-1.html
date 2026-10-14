@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI SCALPING IHSG — 5 Perintah</title>
+<style>
+:root{--bg:#060a0f;--card:#0c131b;--line:#1c2936;--txt:#eaf1f8;--muted:#8998a8;--green:#20d695;--yellow:#f2c94c;--red:#ff6475;--cyan:#35d6e7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px Arial,sans-serif}.wrap{max-width:1400px;margin:auto;padding:12px}
+.top{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.sp{flex:1}h1{font-size:19px;margin:4px 0}.sub{color:var(--muted);font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:11px}
+button,input{background:#101a24;color:var(--txt);border:1px solid #2a3a49;border-radius:7px;padding:9px;font-size:14px}button{cursor:pointer}button:hover{border-color:var(--cyan)}
+button.primary{background:#103d31;border-color:#286f5a;color:#7af2c0;font-weight:bold}
+.cmds{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.cmds input{flex:1;min-width:220px}
+.badge{display:inline-block;padding:4px 9px;border-radius:12px;font-size:11px;font-weight:bold}.buy{background:#103d31;color:#6df1b8}.sell{background:#4a2029;color:#ff8997}.neu{background:#173546;color:#7ce8ff}
+.green{color:var(--green)}.red{color:var(--red)}.muted{color:var(--muted)}
+.twrap{overflow:auto;max-height:70vh;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:1000px}th,td{padding:7px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}th{color:var(--muted);font-size:11px;position:sticky;top:0;background:#0c131b}.t{font-weight:bold}
+.card h3{font-size:14px;margin:16px 0 4px}.ihsg{display:flex;align-items:center;gap:8px}.ihsg b{font-size:20px}
+</style>
+</head>
+<body><div class="wrap">
+<div class="top">
+ <div><h1>🧠 AI SCALPING IHSG — 5 PERINTAH</h1><div class="sub">Setelah scan, hasil BUY / SELL / earnings langsung tampil otomatis untuk semua saham IDX.</div></div>
+ <span class="sp"></span>
+ <div class="ihsg"><span class="sub">IHSG</span><b id="ihsgP">—</b><b id="ihsgC">—</b></div>
+ <button id="scanBtn">⟳ SCAN</button>
+</div>
+
+<div class="card">
+ <div class="cmds">
+  <button data-cmd="/bull" class="primary">🟢 /bull</button>
+  <button data-cmd="/bear">🔴 /bear</button>
+  <button data-cmd="/earn">📅 /earn</button>
+  <input id="cmdInput" placeholder="/price BBCA · /price 100-500 · /find bank" autocomplete="off">
+  <button id="cmdBtn" class="primary">▶ JALANKAN</button>
+ </div>
+ <div id="cmdNote" class="sub" style="margin-top:8px">Setelah SCAN, hasil /bull, /bear, dan /earn tampil otomatis. Ketik /price, /find, atau /help untuk yang lain.</div>
+ <div id="status" class="sub" style="margin-top:4px">Menunggu scanner…</div>
+ <div id="out"></div>
+ <div class="sub" style="margin-top:10px">Rule engine berbasis data scanner TradingView (bisa delayed). Bukan nasihat investasi dan bukan jaminan profit. SELL = sinyal keluar untuk saham yang dipegang, bukan short.</div>
+</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const S={rows:[],cmd:null,lastScan:0};
+const WEB=/^https?:$/.test(location.protocol);
+const TVS=[...(WEB?['/api/scan?m=indonesia','/api/scan?m=global']:[]),'https://scanner.tradingview.com/indonesia/scan','https://scanner.tradingview.com/global/scan'];
+const n=(x,d=2)=>Number.isFinite(+x)?(+x).toFixed(d):'—';
+const pct=x=>Number.isFinite(+x)?((+x>0?'+':'')+n(x,2)+'%'):'—';
+const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const cols=()=>['name','description','close','change','volume','relative_volume_10d_calc','high','low','open','VWAP','RSI','MACD.macd','MACD.signal','EMA10','EMA20','EMA50','Mom','ADX','ATR','sector'];
+
+async function tv(url,body){const c=new AbortController(),t=setTimeout(()=>c.abort(),10000);try{const r=await fetch(url,{method:'POST',headers:{Accept:'application/json','Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(body),mode:'cors',credentials:'omit',signal:c.signal});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
+async function tvAny(body){let err='';for(const u of TVS){try{const j=await tv(u,body);if(j?.data?.length)return j.data}catch(e){err=e.message}}const blocked=/failed to fetch|load failed|networkerror|abort|cors/i.test(err);throw Error(blocked?'Koneksi ke TradingView diblokir/gagal ('+err+'). Jika file dibuka dari penyimpanan HP (content:// atau file://), hosting di Vercel dengan /api/scan diperlukan.':(err||'data kosong'))}
+const payload=(tickers=[])=>({filter:[],options:{lang:'en'},symbols:{query:{types:[]},tickers},columns:cols(),sort:{sortBy:'volume',sortOrder:'desc',nullsFirst:false},range:[0,1500]});
+
+function mapRow(x){const d=x.d||[],o={};cols().forEach((k,i)=>o[k]=d[i]);return{sym:(x.s||o.name||'').replace(/^IDX:/,''),desc:o.description||'',p:+o.close||0,chg:+o.change||0,vol:+o.volume||0,rv:+o.relative_volume_10d_calc||0,high:+o.high||0,vw:+o.VWAP||0,rsi:+o.RSI||0,macd:+o['MACD.macd']||0,msig:+o['MACD.signal']||0,e10:+o.EMA10||0,e20:+o.EMA20||0,e50:+o.EMA50||0,mom:+o.Mom||0,adx:+o.ADX||0,atr:+o.ATR||0,sector:o.sector||''}}
+
+/* ===== Mesin sinyal: BUY / SELL / NETRAL untuk setiap saham ===== */
+function score(){
+ const up=S.rows.filter(r=>r.chg>0).length,breadth=up/Math.max(1,S.rows.length),sec={};
+ S.rows.forEach(r=>{(sec[r.sector]??={n:0,u:0}).n++;if(r.chg>0)sec[r.sector].u++});
+ S.rows.forEach(r=>{
+  let sc=0,why=[],veto=[];
+  if(breadth>.58){sc+=7;why.push('market risk-on')}else if(breadth<.42)sc-=6;else sc+=3;
+  if(r.p>r.e10&&r.e10>r.e20){sc+=10;why.push('EMA bullish')}else if(r.p>r.e20){sc+=5;why.push('di atas EMA20')}
+  if(r.e20>r.e50){sc+=5;why.push('tren naik')}
+  if(r.adx>=20){sc+=4;why.push('ADX aktif')}
+  if(r.rsi>=50&&r.rsi<=72){sc+=7;why.push('RSI momentum')}else if(r.rsi>=45)sc+=3;
+  if(r.macd>r.msig){sc+=7;why.push('MACD bullish')}
+  if(r.mom>0)sc+=4;
+  if(r.rv>=2){sc+=12;why.push('RVOL impuls')}else if(r.rv>=1.5){sc+=9;why.push('RVOL kuat')}else if(r.rv>=1.2)sc+=5;
+  if(r.vw&&r.p>r.vw){sc+=8;why.push('di atas VWAP')}
+  if(r.high&&r.p/r.high>.985&&r.chg>0){sc+=7;why.push('dekat breakout')}
+  if(r.chg>1)sc+=4;
+  const s=sec[r.sector];if(s&&s.n>=3&&s.u/s.n>.58){sc+=4;why.push('sektor kuat')}
+  if(r.vol*r.p<2e9)veto.push('likuiditas rendah');
+  let chase=false;
+  if(r.chg>=7){sc-=12;chase=true;why.push('rawan kejar harga')}
+  if(r.rsi>80)veto.push('RSI ekstrem');
+  if(r.p<50)veto.push('harga <50');
+  if(r.vw&&r.atr&&(r.p-r.vw)/r.atr>2.2){sc-=8;chase=true}
+  r.sc=Math.max(0,Math.min(100,Math.round(sc)));r.veto=veto;r.chase=chase;r.why=why.slice(0,5).join(' · ');
+
+  const core=r.p>r.e20&&r.rsi>=50&&r.macd>=r.msig&&r.rv>=1.15&&(!r.vw||r.p>=r.vw*.997);
+  const trigger=core&&r.rv>=1.4&&r.chg>0&&(!r.vw||r.p>r.vw);
+  r.buy=!veto.length&&!chase&&((r.sc>=82&&trigger)||(r.sc>=70&&core));
+  r.strong=r.buy&&r.sc>=82&&trigger;
+
+  let b=0,bw=[];
+  if(r.p<r.e10&&r.e10<r.e20){b+=15;bw.push('EMA bearish')}else if(r.p<r.e20){b+=8;bw.push('di bawah EMA20')}
+  if(r.e20<r.e50){b+=8;bw.push('tren turun')}
+  if(r.macd<r.msig){b+=12;bw.push('MACD bearish')}
+  if(r.mom<0)b+=6;
+  if(r.rsi&&r.rsi<50)b+=8;if(r.rsi&&r.rsi<40){b+=6;bw.push('RSI lemah')}
+  if(r.vw&&r.p<r.vw){b+=10;bw.push('di bawah VWAP')}
+  if(r.chg<-1)b+=8;if(r.chg<-2){b+=6;bw.push('turun tajam')}
+  if(r.rv>=1.5&&r.chg<0){b+=12;bw.push('volume jual besar')}
+  if(r.adx>=20&&r.p<r.e20)b+=5;
+  r.bsc=Math.min(100,b);r.bwhy=bw.slice(0,5).join(' · ');
+  r.sell=!r.buy&&r.bsc>=55;
+
+  const risk=r.atr>0?Math.max(.7,1.2*r.atr):r.p*.012;
+  r.entryLow=r.vw&&r.vw<r.p?r.vw:r.p-risk*.35;r.entryHigh=r.p;
+  r.sl=Math.max(0,r.entryLow-risk);r.tp1=r.p+risk*1.5;r.tp2=r.p+risk*2.5;r.rr=(r.tp1-r.p)/Math.max(.01,r.p-r.sl);
+ });
+ S.rows.sort((a,b)=>b.sc-a.sc);
+}
+const sigBadge=r=>r.buy?`<span class="badge buy">🟢 BUY${r.strong?' · KUAT':''}</span>`:r.sell?`<span class="badge sell">🔴 SELL${r.bsc>=70?' · KUAT':''}</span>`:'<span class="badge neu">— NETRAL</span>';
+
+/* ===== Tampilan hasil ===== */
+function tbl(rows){
+ if(!rows.length)return '<div class="sub" style="margin:8px 0">Tidak ada saham yang cocok.</div>';
+ return `<div class="twrap"><table><thead><tr><th>#</th><th>SAHAM</th><th>SINYAL</th><th>SKOR</th><th>HARGA</th><th>%</th><th>RSI</th><th>RVOL</th><th>VWAP</th><th>ENTRY</th><th>SL</th><th>TP1</th><th>TP2</th><th>R:R</th><th>ALASAN</th></tr></thead><tbody>${rows.map((r,i)=>{const b=r.buy,sl=r.sell&&!r.buy;return `<tr><td>${i+1}</td><td class="t">${esc(r.sym)}</td><td>${sigBadge(r)}</td><td><b>${sl?r.bsc:r.sc}</b></td><td>${n(r.p)}</td><td class="${r.chg>=0?'green':'red'}">${pct(r.chg)}</td><td>${n(r.rsi,1)}</td><td>${n(r.rv,2)}</td><td>${r.vw?(r.p>r.vw?'🟢':'🔴'):'—'}</td><td>${b?n(r.entryLow)+'–'+n(r.entryHigh):'—'}</td><td>${b?n(r.sl):'—'}</td><td>${b?n(r.tp1):'—'}</td><td>${b?n(r.tp2):'—'}</td><td>${b?n(r.rr,2):'—'}</td><td>${esc(sl?r.bwhy:r.why)||'—'}</td></tr>`}).join('')}</tbody></table></div>`}
+function earnTable(rows){
+ const D=v=>Number.isFinite(+v)&&+v>0?new Date(+v*1000).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
+ const sig=x=>{const r=S.rows.find(q=>q.sym===x);return r?sigBadge(r):'—'};
+ if(!rows.length)return '<div class="sub" style="margin:8px 0">Tidak ada rilis laporan terjadwal dalam 30 hari.</div>';
+ return '<div class="twrap" style="max-height:340px"><table style="min-width:900px"><thead><tr><th>SAHAM</th><th>SINYAL</th><th>HARGA</th><th>RILIS BERIKUTNYA</th><th>RILIS TERAKHIR</th><th>EPS TTM</th><th>EPS YoY</th><th>PER</th></tr></thead><tbody>'+rows.map(o=>`<tr><td class="t">${esc(o.sym)}</td><td>${sig(o.sym)}</td><td>${n(o.close)}</td><td>${D(o.earnings_release_next_date)}</td><td>${D(o.earnings_release_date)}</td><td>${n(o.earnings_per_share_basic_ttm)}</td><td>${o.earnings_per_share_diluted_yoy_growth_ttm==null?'—':pct(o.earnings_per_share_diluted_yoy_growth_ttm)}</td><td>${n(o.price_earnings_ttm,1)}</td></tr>`).join('')+'</tbody></table></div>'}
+function render(){
+ if(S.cmd&&S.cmd.mode==='earn')return;
+ if(!S.cmd){
+  if(!S.rows.length){$('#out').innerHTML='';return}
+  const bu=S.rows.filter(r=>r.buy).sort((x,y)=>y.sc-x.sc).slice(0,100),se=S.rows.filter(r=>r.sell).sort((x,y)=>y.bsc-x.bsc).slice(0,100);
+  const ea=S.earnErr?`<div class="sub red" style="margin:8px 0">${esc(S.earnErr)}</div>`:S.earnRows?earnTable(S.earnRows):'<div class="sub" style="margin:8px 0">⏳ Memuat data earnings…</div>';
+  $('#out').innerHTML=`<h3 class="green">🟢 /bull — ${bu.length} saham BUY</h3>${tbl(bu)}<h3 class="red">🔴 /bear — ${se.length} saham SELL</h3>${tbl(se)}<h3>📅 /earn — rilis laporan ≤30 hari</h3>${ea}`;
+  return}
+ $('#out').innerHTML=tbl(S.rows.filter(S.cmd.fn).sort(S.cmd.sort).slice(0,100));
+}
+
+/* ===== Data ===== */
+async function scan(){
+ if(S.lastScan&&Date.now()-S.lastScan<2500)return;S.lastScan=Date.now();
+ $('#scanBtn').disabled=true;$('#status').textContent='⏳ Mengambil semua saham IDX…';
+ try{
+  let data;try{data=await tvAny(payload())}catch(e){data=await tvAny(payload(['BBCA','BBRI','BMRI','BBNI','TLKM','ASII','GOTO','ANTM','MDKA','BRPT','AMRT','ICBP','INDF','UNTR','ADRO','PTBA','ITMG','PGAS','SMGR','BUKA'].map(x=>'IDX:'+x)))}
+  const keep=S.rows.filter(r=>r.extra);
+  S.rows=data.map(mapRow).filter(r=>r.sym);
+  keep.forEach(k=>{if(!S.rows.find(r=>r.sym===k.sym))S.rows.push(k)});
+  score();
+  $('#status').textContent='✅ '+S.rows.length+' saham dianalisa · '+S.rows.filter(r=>r.buy).length+' BUY · '+S.rows.filter(r=>r.sell).length+' SELL · '+new Date().toLocaleTimeString('id-ID');
+  render();loadEarnAuto();
+ }catch(e){$('#status').innerHTML='<span class="red">❌ '+esc(e.message)+'</span>'}
+ finally{$('#scanBtn').disabled=false}
+}
+async function updateIHSG(){
+ try{const d=(await tvAny({symbols:{tickers:['IDX:COMPOSITE'],query:{types:[]}},columns:['close','change']}))[0].d;
+  $('#ihsgP').textContent=n(d[0]);$('#ihsgC').textContent=pct(d[1]);$('#ihsgC').className=d[1]>=0?'green':'red'}catch(e){$('#ihsgP').textContent='offline'}
+}
+async function ensureSym(key){
+ let r=S.rows.find(x=>x.sym===key);if(r)return r;
+ const d=await tvAny(payload(['IDX:'+key]));r=mapRow(d[0]);r.extra=true;S.rows.push(r);score();return S.rows.find(x=>x.sym===key);
+}
+
+/* ===== 5 perintah ===== */
+const HELP='<b>5 perintah:</b><br>/bull — semua saham dengan sinyal BUY<br>/bear — semua saham dengan sinyal SELL<br>/price BBCA — harga + sinyal + entry/SL/TP satu saham · /price 100-500 · /price &gt;1000 · /price &lt;200 — filter rentang harga<br>/find bank atau /find BBCA — cari kode/nama + sinyalnya<br>/earn — rilis laporan ≤30 hari + sinyal · /earn BBCA — satu saham<br>(/reset untuk kembali ke tampilan otomatis)';
+async function runCmd(raw){
+ const t=(raw||'').trim();if(!t)return;
+ const parts=t.split(/\s+/),cmd=parts[0].toLowerCase(),arg=parts.slice(1).join(' ').trim(),note=m=>{$('#cmdNote').innerHTML=m};
+ if(cmd==='/help'){note(HELP);return}
+ if(cmd==='/reset'){S.cmd=null;render();note('Kembali ke tampilan otomatis (BUY + SELL + earnings).');return}
+ if(!S.rows.length){note('<span class="red">Scanner belum siap — tekan SCAN dulu.</span>');return}
+ if(cmd==='/bull'){S.cmd={mode:'bull',fn:r=>r.buy,sort:(a,b)=>b.sc-a.sc};render();note('🟢 /bull — '+S.rows.filter(S.cmd.fn).length+' saham BUY (urut skor). Entry, SL, dan TP ada di tabel.');return}
+ if(cmd==='/bear'){S.cmd={mode:'bear',fn:r=>r.sell,sort:(a,b)=>b.bsc-a.bsc};render();note('🔴 /bear — '+S.rows.filter(S.cmd.fn).length+' saham SELL (urut skor bearish).');return}
+ if(cmd==='/price'){
+  if(!arg){note('Contoh: /price BBCA · /price 100-500 · /price &gt;1000');return}
+  const f=x=>parseFloat(String(x).replace(',','.')),m=/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.exec(arg),g=/^([<>])\s*(\d+(?:[.,]\d+)?)$/.exec(arg);
+  if(m){const lo=f(m[1]),hi=f(m[2]);S.cmd={mode:'price',fn:r=>r.p>=lo&&r.p<=hi,sort:(a,b)=>b.sc-a.sc};render();note('💰 /price '+lo+'–'+hi+' — '+S.rows.filter(S.cmd.fn).length+' saham');return}
+  if(g){const v=f(g[2]),upv=g[1]==='>';S.cmd={mode:'price',fn:r=>upv?r.p>v:r.p<v,sort:(a,b)=>b.sc-a.sc};render();note('💰 /price '+g[1]+v+' — '+S.rows.filter(S.cmd.fn).length+' saham');return}
+  const key=arg.toUpperCase().replace(/[^A-Z0-9.]/g,'');
+  try{const r=await ensureSym(key);S.cmd={mode:'price',fn:x=>x.sym===key,sort:(a,b)=>b.sc-a.sc};render();
+   note(`💰 <b>${esc(r.sym)}</b> ${n(r.p)} (${pct(r.chg)}) · ${r.buy?'🟢 BUY':r.sell?'🔴 SELL':'— NETRAL'}`+(r.buy?`<br>Entry ${n(r.entryLow)}–${n(r.entryHigh)} · SL ${n(r.sl)} · TP1 ${n(r.tp1)} · TP2 ${n(r.tp2)}`:''))}
+  catch(e){note('<span class="red">❌ '+esc(key)+' tidak ditemukan.</span>')}
+  return}
+ if(cmd==='/find'){
+  if(!arg){note('Contoh: /find BBCA · /find bank');return}
+  const q=arg.toUpperCase(),key=q.replace(/[^A-Z0-9.]/g,'');
+  let hits=S.rows.filter(r=>r.sym.toUpperCase().includes(key)||r.desc.toUpperCase().includes(q));
+  if(!hits.length&&key){try{hits=[await ensureSym(key)]}catch(e){}}
+  const set=new Set(hits.map(r=>r.sym));S.cmd={mode:'find',fn:r=>set.has(r.sym),sort:(a,b)=>b.sc-a.sc};render();
+  note('🔎 /find "'+esc(arg)+'" — '+hits.length+' hasil');return}
+ if(cmd==='/earn'){await earn(arg,note);return}
+ note('<span class="red">Perintah tidak dikenal.</span><br>'+HELP);
+}
+async function earnFetch(key){
+ const full=['name','description','close','earnings_release_next_date','earnings_release_date','earnings_per_share_basic_ttm','earnings_per_share_diluted_yoy_growth_ttm','price_earnings_ttm'];
+ const mini=['name','description','close','earnings_release_next_date','price_earnings_ttm'];
+ let data=null,C=null,err='';
+ for(const cs of [full,mini]){
+  for(const u of TVS){try{const j=await tv(u,{filter:[],options:{lang:'en'},symbols:{query:{types:[]},tickers:key?['IDX:'+key]:[]},columns:cs,sort:{sortBy:'volume',sortOrder:'desc',nullsFirst:false},range:[0,1500]});if(j?.data?.length){data=j.data;C=cs;break}}catch(e){err=e.message}}
+  if(data)break}
+ if(!data)throw Error('Data earnings tidak tersedia: '+(err||'kosong'));
+ const now=Date.now()/1000;
+ let rows=data.map(x=>{const o={};C.forEach((k,i)=>o[k]=x.d[i]);o.sym=(x.s||o.name||'').replace(/^IDX:/,'');return o});
+ if(!key)rows=rows.filter(o=>+o.earnings_release_next_date>now&&+o.earnings_release_next_date<now+30*86400).sort((a,b)=>a.earnings_release_next_date-b.earnings_release_next_date);
+ return rows.slice(0,100)}
+async function loadEarnAuto(){
+ if(S.earnAt&&Date.now()-S.earnAt<600000)return;
+ S.earnAt=Date.now();
+ try{S.earnRows=await earnFetch('');S.earnErr=''}catch(e){S.earnErr='❌ '+e.message;S.earnAt=0}
+ if(!S.cmd)render()}
+async function earn(arg,note){
+ const key=arg.toUpperCase().replace(/[^A-Z0-9.]/g,'');
+ note('⏳ Mengambil data earnings…');
+ try{const rows=await earnFetch(key);S.cmd={mode:'earn'};$('#out').innerHTML=earnTable(rows);
+  note('📅 /earn — '+rows.length+(key?' data '+esc(key):' saham rilis laporan ≤30 hari')+'. Volatilitas biasanya naik dekat tanggal rilis.')}
+ catch(e){note('<span class="red">❌ '+esc(e.message)+'</span>')}
+}
+
+document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>{$('#cmdInput').value=b.dataset.cmd;runCmd(b.dataset.cmd)});
+$('#cmdBtn').onclick=()=>runCmd($('#cmdInput').value);
+$('#cmdInput').addEventListener('keydown',e=>{if(e.key==='Enter')runCmd(e.target.value)});
+$('#scanBtn').onclick=scan;
+setInterval(()=>{if(!document.hidden)scan()},30000);
+setInterval(()=>{if(!document.hidden)updateIHSG()},5000);
+scan();updateIHSG();
+</script>
+</body></html>
